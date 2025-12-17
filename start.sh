@@ -35,42 +35,34 @@ echo ""
 echo "⏳ Waiting for services to be ready..."
 sleep 5
 
-# Check service health
+# Check service health with timeout and error handling
+check_service() {
+    local service_name=$1
+    local url=$2
+    local max_attempts=30
+    
+    echo -n "  Waiting for $service_name..."
+    for i in $(seq 1 $max_attempts); do
+        if curl -s "$url" > /dev/null 2>&1; then
+            echo " ✓"
+            return 0
+        fi
+        sleep 2
+        echo -n "."
+    done
+    
+    echo " ❌"
+    echo "  Error: $service_name failed to start within $((max_attempts * 2)) seconds"
+    return 1
+}
+
 echo ""
 echo "🔍 Checking service health..."
 
-# Wait for Neo4j
-echo -n "  Waiting for Neo4j..."
-for i in {1..30}; do
-    if curl -s http://localhost:7474 > /dev/null 2>&1; then
-        echo " ✓"
-        break
-    fi
-    sleep 2
-    echo -n "."
-done
-
-# Wait for Backend
-echo -n "  Waiting for Backend API..."
-for i in {1..30}; do
-    if curl -s http://localhost:8000/health > /dev/null 2>&1; then
-        echo " ✓"
-        break
-    fi
-    sleep 2
-    echo -n "."
-done
-
-# Wait for Frontend
-echo -n "  Waiting for Frontend..."
-for i in {1..30}; do
-    if curl -s http://localhost:3000 > /dev/null 2>&1; then
-        echo " ✓"
-        break
-    fi
-    sleep 2
-    echo -n "."
-done
+# Check services
+check_service "Neo4j" "http://localhost:7474" || exit 1
+check_service "Backend API" "http://localhost:8000/health" || exit 1
+check_service "Frontend" "http://localhost:3000" || exit 1
 
 echo ""
 echo "✅ All services are running!"

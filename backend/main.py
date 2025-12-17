@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+from contextlib import asynccontextmanager
 import os
 import logging
 
@@ -18,11 +19,49 @@ from neo4j_client import Neo4jClient
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
+# Initialize components
+continuity_core = ContinuityCore()
+memmachine = MemMachine(storage_path=os.getenv("MEMMACHINE_PATH", "./memmachine_data"))
+
+# Neo4j connection (will be initialized in lifespan)
+neo4j_client: Optional[Neo4jClient] = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager for startup and shutdown events"""
+    global neo4j_client
+    
+    # Startup
+    neo4j_uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+    neo4j_user = os.getenv("NEO4J_USER", "neo4j")
+    neo4j_password = os.getenv("NEO4J_PASSWORD", "continuity123")
+    
+    try:
+        neo4j_client = Neo4jClient(neo4j_uri, neo4j_user, neo4j_password)
+        logger.info("Connected to Neo4j database")
+        
+        # Initialize seed data
+        await initialize_seed_data()
+        
+    except Exception as e:
+        logger.error(f"Failed to connect to Neo4j: {e}")
+        logger.warning("Running without Neo4j support")
+    
+    yield
+    
+    # Shutdown
+    if neo4j_client:
+        neo4j_client.close()
+        logger.info("Closed Neo4j connection")
+
+
+# Initialize FastAPI app with lifespan
 app = FastAPI(
     title="EchoForge API",
     description="Team Memory & Decision Layer for Continuity Stack",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Configure CORS
@@ -33,13 +72,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Initialize components
-continuity_core = ContinuityCore()
-memmachine = MemMachine(storage_path=os.getenv("MEMMACHINE_PATH", "./memmachine_data"))
-
-# Neo4j connection (will be initialized in startup event)
-neo4j_client: Optional[Neo4jClient] = None
 
 
 # ==================== Pydantic Models ====================
@@ -89,37 +121,6 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     context: Dict[str, Any] = {}
-
-
-# ==================== Startup/Shutdown Events ====================
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database connections on startup"""
-    global neo4j_client
-    
-    neo4j_uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-    neo4j_user = os.getenv("NEO4J_USER", "neo4j")
-    neo4j_password = os.getenv("NEO4J_PASSWORD", "continuity123")
-    
-    try:
-        neo4j_client = Neo4jClient(neo4j_uri, neo4j_user, neo4j_password)
-        logger.info("Connected to Neo4j database")
-        
-        # Initialize seed data
-        await initialize_seed_data()
-        
-    except Exception as e:
-        logger.error(f"Failed to connect to Neo4j: {e}")
-        logger.warning("Running without Neo4j support")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Close database connections on shutdown"""
-    if neo4j_client:
-        neo4j_client.close()
-        logger.info("Closed Neo4j connection")
 
 
 # ==================== Health & Info Endpoints ====================
