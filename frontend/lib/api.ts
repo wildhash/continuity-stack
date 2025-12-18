@@ -2,7 +2,18 @@ import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+export interface ChatResponse {
+  response: string;
+  timestamp: string;
+  agent_version: string;
+}
+
 export const apiClient = {
+  async sendChatMessage(message: string): Promise<ChatResponse> {
+    const response = await axios.post(`${API_URL}/api/chat/send`, { message });
+    return response.data;
+  },
+
   async health() {
     return axios.get(`${API_URL}/health`);
   },
