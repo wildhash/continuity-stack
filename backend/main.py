@@ -14,25 +14,39 @@ import logging
 from continuity_core import ContinuityCore, TaskStatus
 from memmachine import MemMachine
 from neo4j_client import Neo4jClient
+from llm_client import LLMClient
+from memmachine_client import MemMachineClient
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize components
-continuity_core = ContinuityCore()
-memmachine = MemMachine(storage_path=os.getenv("MEMMACHINE_PATH", "./memmachine_data"))
-
-# Neo4j connection (will be initialized in lifespan)
+# Components (will be initialized in lifespan)
+continuity_core: Optional[ContinuityCore] = None
+memmachine: Optional[MemMachine] = None
+memmachine_client: Optional[MemMachineClient] = None
+llm_client: Optional[LLMClient] = None
 neo4j_client: Optional[Neo4jClient] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and shutdown events"""
-    global neo4j_client
+    global neo4j_client, continuity_core, memmachine, memmachine_client, llm_client
     
     # Startup
+    logger.info("Starting up EchoForge API...")
+    
+    # Initialize LLM Client
+    llm_client = LLMClient()
+    logger.info("LLM client initialized")
+    
+    # Initialize MemMachine (both old and new clients for compatibility)
+    memmachine = MemMachine(storage_path=os.getenv("MEMMACHINE_PATH", "./memmachine_data"))
+    memmachine_client = MemMachineClient()
+    logger.info("MemMachine clients initialized")
+    
+    # Initialize Neo4j
     neo4j_uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     neo4j_user = os.getenv("NEO4J_USER", "neo4j")
     neo4j_password = os.getenv("NEO4J_PASSWORD", "continuity123")
@@ -48,12 +62,24 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to connect to Neo4j: {e}")
         logger.warning("Running without Neo4j support")
     
+    # Initialize Continuity Core with all clients
+    continuity_core = ContinuityCore(
+        llm_client=llm_client,
+        memmachine_client=memmachine_client,
+        neo4j_client=neo4j_client
+    )
+    logger.info("Continuity Core initialized with all integrations")
+    
     yield
     
     # Shutdown
     if neo4j_client:
         neo4j_client.close()
         logger.info("Closed Neo4j connection")
+    
+    if memmachine_client:
+        await memmachine_client.close()
+        logger.info("Closed MemMachine client")
 
 
 # Initialize FastAPI app with lifespan
@@ -391,6 +417,141 @@ async def get_decision_impact(decision_id: str):
     try:
         impact = neo4j_client.get_decision_impact_analysis(decision_id)
         return impact
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/graph/insights")
+async def get_graph_insights():
+    """Get comprehensive graph insights including lessons, failures, and capabilities"""
+    if not neo4j_client:
+        raise HTTPException(status_code=503, detail="Neo4j not available")
+    
+    try:
+        insights = neo4j_client.get_graph_insights()
+        return insights
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/graph/timeline")
+async def get_graph_timeline(limit: int = 50):
+    """Get timeline of events from the graph"""
+    if not neo4j_client:
+        raise HTTPException(status_code=503, detail="Neo4j not available")
+    
+    try:
+        timeline = neo4j_client.get_timeline_events(limit=limit)
+        return {"timeline": timeline, "count": len(timeline)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/graph/upsert_identity_event")
+async def upsert_identity_event(event: Dict[str, Any]):
+    """Create or update an identity event in the graph"""
+    if not neo4j_client:
+        raise HTTPException(status_code=503, detail="Neo4j not available")
+    
+    try:
+        identity_id = event.get("identity_id", "agent_system")
+        event_type = event.get("event_type", "generic")
+        data = event.get("data", {})
+        
+        # For now, we'll create this as a decision with event context
+        decision_id = f"event_{event_type}_{int(datetime.utcnow().timestamp())}"
+        result = neo4j_client.create_decision(
+            decision_id=decision_id,
+            title=f"Event: {event_type}",
+            description=str(data),
+            made_by=identity_id,
+            context={"event_type": event_type, "data": data}
+        )
+        
+        return {"event_id": decision_id, "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/graph/log_decision")
+async def log_decision(run_id: str, prompt: str, choice: str, rationale: str):
+    """Log a decision made during a run"""
+    if not neo4j_client:
+        raise HTTPException(status_code=503, detail="Neo4j not available")
+    
+    try:
+        decision_id = neo4j_client.log_decision_in_run(run_id, prompt, choice, rationale)
+        return {"decision_id": decision_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/graph/log_lesson")
+async def log_lesson(outcome_id: str, title: str, content: str, confidence: float = 1.0):
+    """Log a lesson learned from an outcome"""
+    if not neo4j_client:
+        raise HTTPException(status_code=503, detail="Neo4j not available")
+    
+    try:
+        lesson_id = neo4j_client.create_lesson_from_outcome(outcome_id, title, content, confidence)
+        return {"lesson_id": lesson_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== Memory Endpoints (Enhanced) ====================
+
+@app.post("/api/memory/write")
+async def write_memory(content: str, metadata: Optional[Dict[str, Any]] = None):
+    """Write a memory to MemMachine client"""
+    try:
+        if memmachine_client:
+            memory_id = await memmachine_client.write_memory(content, metadata)
+        else:
+            memory_id = memmachine.store_memory({
+                "content": content,
+                "metadata": metadata or {},
+                "category": metadata.get("category", "general") if metadata else "general"
+            })
+        
+        return {
+            "memory_id": memory_id,
+            "status": "stored",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/memory/search")
+async def search_memory(query: str, limit: int = 10):
+    """Search memories using MemMachine client"""
+    try:
+        if memmachine_client:
+            results = await memmachine_client.search_memory(query, limit)
+        else:
+            results = memmachine.search_memories(query)[:limit]
+        
+        return {"results": results, "count": len(results)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/memory/summary")
+async def get_memory_summary():
+    """Get summary statistics about stored memories"""
+    try:
+        if memmachine_client:
+            stats = await memmachine_client.get_memory_stats()
+        else:
+            memories = memmachine.get_memories()
+            stats = {
+                "total_memories": len(memories),
+                "storage_mode": "local_file",
+                "recent_count": len([m for m in memories if m.get("timestamp", "") > "2024-01-01"])
+            }
+        
+        return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
