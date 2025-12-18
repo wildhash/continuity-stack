@@ -10,8 +10,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+backend/lib/
+backend/lib64/
 parts/
 sdist/
 var/
@@ -50,6 +50,12 @@ out/
 
 # Neo4j
 neo4j_data/
+neo4j_logs/
+
+# MemMachine Data (keep structure, ignore content)
+memmachine_data/memories.json
+memmachine_data/decisions.json
+memmachine_data/agent_state.json
 
 # Test coverage
 .coverage

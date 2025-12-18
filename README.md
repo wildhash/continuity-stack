@@ -8,13 +8,25 @@ Built with **MemMachine** (persistent memory) + **Neo4j** (knowledge graph) for 
 
 ## 🎯 Demo Highlights
 
-This full-stack demo showcases:
+This full-stack demo showcases a **production-ready self-evolving agent system**:
 
 1. **Agent fails** on a task it hasn't encountered before
-2. **Agent reflects** on the failure and analyzes what went wrong
-3. **Agent stores lesson** in both MemMachine and Neo4j graph
-4. **Agent updates** its capabilities and knowledge graph
-5. **Agent succeeds** when retrying the same task
+2. **Agent reflects** on the failure using LLM or deterministic analysis
+3. **Agent stores lesson** in both MemMachine (persistent memory) and Neo4j (knowledge graph)
+4. **Agent evolves** by gaining new capabilities and incrementing version
+5. **Agent succeeds** when retrying the same task, citing learned knowledge
+
+### Key Features
+
+✅ **Self-Reflection Loop**: Think → Act → Observe → Reflect → Store → Evolve  
+✅ **Deterministic Fallback**: Works without OpenAI API (demo mode)  
+✅ **Multi-Layer Storage**: MemMachine + Neo4j for redundancy  
+✅ **Version Control**: Each learning event increments agent version  
+✅ **Knowledge Citation**: Agent explicitly cites recalled lessons  
+✅ **Graph Reasoning**: Cypher queries for complex relationship analysis  
+✅ **Audit Trail**: Every decision tracked with full context  
+
+**Demo Time:** 2-4 minutes | **See:** [DEMO_SCRIPT.md](./DEMO_SCRIPT.md)
 
 ## 🏗️ Architecture
 
@@ -108,6 +120,31 @@ npm run dev
 
 ## 📖 Usage Guide
 
+### Quick Demo (Automated)
+
+The fastest way to see the agent in action:
+
+```bash
+# Start all services
+./start.sh
+
+# Wait 30 seconds for Neo4j to initialize
+# Then run the automated demo
+./run-demo.sh
+```
+
+This runs the complete **fail → reflect → learn → succeed** cycle and shows:
+- ❌ First attempt fails (missing capability)
+- 🧠 Agent reflects and learns a lesson
+- ✨ Agent gains new capability
+- 📈 Agent version increments (1.0.0 → 1.0.1)
+- ✅ Second attempt succeeds (using learned capability)
+
+**Output URLs:**
+- UI: http://localhost:3000
+- API: http://localhost:8000/docs
+- Neo4j: http://localhost:7474 (user: neo4j, pass: continuity123)
+
 ### Running the Demo Scenario
 
 1. Open Lifeline UI at http://localhost:3000
@@ -142,16 +179,28 @@ The **Profile & Timeline** tab shows:
 
 ### Agent & Tasks
 
-- `POST /api/tasks/execute` - Execute a task through the agent
+- `POST /api/tasks/execute` - Execute a task through the agent (returns steps, citations, graph_summary)
 - `GET /api/agent/status` - Get current agent status and capabilities
 - `GET /api/agent/history` - Get task execution history
 - `GET /api/agent/reflections` - Get all reflections
 
 ### Memory (MemMachine)
 
-- `POST /api/memory/store` - Store a memory
+- `POST /api/memory/store` - Store a memory (old interface)
+- `POST /api/memory/write` - Write memory (new client interface)
+- `POST /api/memory/search` - Search memories by text query
 - `GET /api/memory/list` - List memories with filtering
-- `GET /api/memory/search` - Search memories by text
+- `GET /api/memory/summary` - Get memory statistics
+
+### Graph Operations (Neo4j)
+
+- `POST /api/graph/upsert_identity_event` - Create/update identity event
+- `POST /api/graph/log_decision` - Log a decision in a run
+- `POST /api/graph/log_lesson` - Log a lesson from an outcome
+- `GET /api/graph/insights` - Get comprehensive learning analytics
+- `GET /api/graph/timeline` - Get timeline of all events
+- `GET /api/graph/version-evolution` - Get agent version evolution chain
+- `GET /api/graph/decision-impact/{id}` - Analyze decision impact
 
 ### Decisions (Neo4j)
 
@@ -269,17 +318,46 @@ RETURN i.name as identity,
 
 ### Environment Variables
 
-Backend (set in `docker-compose.yml` or `.env`):
+#### Backend (Required)
+
 ```bash
-NEO4J_URI=bolt://neo4j:7687
+# Neo4j Configuration
+NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=continuity123
+
+# MemMachine Mode (choose one)
+# Option 1: Local file-based storage (default)
+LOCAL_FAKE_MEMORY=1
 MEMMACHINE_PATH=./memmachine_data
+
+# Option 2: External MemMachine API
+# MEMMACHINE_API_KEY=your_api_key
+# MEMMACHINE_BASE_URL=https://api.memmachine.ai
+# MEMMACHINE_NAMESPACE=continuity-stack-demo
 ```
 
-Frontend:
+#### Backend (Optional - LLM Integration)
+
 ```bash
+# LLM Provider (uses deterministic mode if not set)
+OPENAI_API_KEY=sk-your-openai-api-key
+LLM_MODEL=gpt-4  # or gpt-3.5-turbo
+```
+
+#### Frontend
+
+```bash
+# API URL
 NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+**Important:** Copy `.env.example` to `.env` in each directory and customize as needed.
+
+```bash
+cp .env.example .env
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
 ```
 
 ## 🐛 Troubleshooting
