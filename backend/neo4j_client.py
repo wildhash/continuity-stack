@@ -29,6 +29,9 @@ class Neo4jClient:
                 "CREATE CONSTRAINT identity_id IF NOT EXISTS FOR (i:Identity) REQUIRE i.id IS UNIQUE",
                 "CREATE CONSTRAINT decision_id IF NOT EXISTS FOR (d:Decision) REQUIRE d.id IS UNIQUE",
                 "CREATE CONSTRAINT agent_version_id IF NOT EXISTS FOR (a:AgentVersion) REQUIRE a.version IS UNIQUE",
+                "CREATE CONSTRAINT run_id IF NOT EXISTS FOR (r:Run) REQUIRE r.id IS UNIQUE",
+                "CREATE CONSTRAINT lesson_id IF NOT EXISTS FOR (l:Lesson) REQUIRE l.id IS UNIQUE",
+                "CREATE CONSTRAINT capability_id IF NOT EXISTS FOR (c:Capability) REQUIRE c.id IS UNIQUE",
             ]
             
             for constraint in constraints:
@@ -296,3 +299,277 @@ class Neo4jClient:
                     "decision_statuses": record["decision_statuses"]
                 }
             return {}
+    
+    # ==================== Run Management ====================
+    
+    def create_run(self, run_id: str, task_type: str, agent_version: str,
+                   started_at: Optional[str] = None, success: bool = False,
+                   context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Create a Run node and link to AgentVersion"""
+        query = """
+        MATCH (a:AgentVersion {version: $agent_version})
+        CREATE (r:Run {
+            id: $run_id,
+            task_type: $task_type,
+            started_at: $started_at,
+            success: $success,
+            context: $context
+        })
+        CREATE (a)-[:RAN]->(r)
+        RETURN r
+        """
+        
+        with self.driver.session() as session:
+            result = session.run(query,
+                run_id=run_id,
+                task_type=task_type,
+                agent_version=agent_version,
+                started_at=started_at or datetime.utcnow().isoformat(),
+                success=success,
+                context=context or {}
+            )
+            record = result.single()
+            return dict(record["r"]) if record else {}
+    
+    def log_decision_in_run(self, run_id: str, prompt: str, choice: str, rationale: str) -> str:
+        """Log a decision made during a run"""
+        decision_id = f"decision_{run_id}_{int(datetime.utcnow().timestamp())}"
+        
+        query = """
+        MATCH (r:Run {id: $run_id})
+        CREATE (d:Decision {
+            id: $decision_id,
+            prompt: $prompt,
+            choice: $choice,
+            rationale: $rationale,
+            timestamp: $timestamp
+        })
+        CREATE (r)-[:MADE_DECISION]->(d)
+        RETURN d
+        """
+        
+        with self.driver.session() as session:
+            result = session.run(query,
+                run_id=run_id,
+                decision_id=decision_id,
+                prompt=prompt,
+                choice=choice,
+                rationale=rationale,
+                timestamp=datetime.utcnow().isoformat()
+            )
+            record = result.single()
+            return decision_id if record else ""
+    
+    def log_outcome(self, decision_id: str, success: bool, details: str) -> str:
+        """Log the outcome of a decision"""
+        outcome_id = f"outcome_{decision_id}"
+        
+        query = """
+        MATCH (d:Decision {id: $decision_id})
+        CREATE (o:Outcome {
+            id: $outcome_id,
+            success: $success,
+            details: $details,
+            timestamp: $timestamp
+        })
+        CREATE (d)-[:LED_TO]->(o)
+        RETURN o
+        """
+        
+        with self.driver.session() as session:
+            result = session.run(query,
+                decision_id=decision_id,
+                outcome_id=outcome_id,
+                success=success,
+                details=details,
+                timestamp=datetime.utcnow().isoformat()
+            )
+            record = result.single()
+            return outcome_id if record else ""
+    
+    def create_lesson_from_outcome(self, outcome_id: str, title: str, content: str, confidence: float = 1.0) -> str:
+        """Create a Lesson from an Outcome"""
+        lesson_id = f"lesson_{int(datetime.utcnow().timestamp())}"
+        
+        query = """
+        MATCH (o:Outcome {id: $outcome_id})
+        CREATE (l:Lesson {
+            id: $lesson_id,
+            title: $title,
+            content: $content,
+            confidence: $confidence,
+            created_at: $timestamp
+        })
+        CREATE (o)-[:PRODUCED]->(l)
+        RETURN l
+        """
+        
+        with self.driver.session() as session:
+            result = session.run(query,
+                outcome_id=outcome_id,
+                lesson_id=lesson_id,
+                title=title,
+                content=content,
+                confidence=confidence,
+                timestamp=datetime.utcnow().isoformat()
+            )
+            record = result.single()
+            return lesson_id if record else ""
+    
+    def add_capability(self, capability_name: str, description: str = "") -> str:
+        """Create or get a Capability node"""
+        capability_id = f"cap_{capability_name}"
+        
+        query = """
+        MERGE (c:Capability {id: $capability_id})
+        ON CREATE SET c.name = $name, c.description = $description, c.created_at = $timestamp
+        RETURN c
+        """
+        
+        with self.driver.session() as session:
+            result = session.run(query,
+                capability_id=capability_id,
+                name=capability_name,
+                description=description,
+                timestamp=datetime.utcnow().isoformat()
+            )
+            record = result.single()
+            return capability_id if record else ""
+    
+    def agent_gains_capability(self, agent_version: str, capability_name: str):
+        """Link an agent version to a capability it gained"""
+        capability_id = f"cap_{capability_name}"
+        
+        query = """
+        MATCH (a:AgentVersion {version: $agent_version})
+        MERGE (c:Capability {id: $capability_id})
+        ON CREATE SET c.name = $capability_name, c.created_at = $timestamp
+        MERGE (a)-[:GAINED]->(c)
+        """
+        
+        with self.driver.session() as session:
+            session.run(query,
+                agent_version=agent_version,
+                capability_id=capability_id,
+                capability_name=capability_name,
+                timestamp=datetime.utcnow().isoformat()
+            )
+    
+    def lesson_updates_capability(self, lesson_id: str, capability_name: str):
+        """Link a lesson to the capability it updates"""
+        capability_id = f"cap_{capability_name}"
+        
+        query = """
+        MATCH (l:Lesson {id: $lesson_id})
+        MERGE (c:Capability {id: $capability_id})
+        ON CREATE SET c.name = $capability_name, c.created_at = $timestamp
+        MERGE (l)-[:UPDATES]->(c)
+        """
+        
+        with self.driver.session() as session:
+            session.run(query,
+                lesson_id=lesson_id,
+                capability_id=capability_id,
+                capability_name=capability_name,
+                timestamp=datetime.utcnow().isoformat()
+            )
+    
+    # ==================== Query Methods ====================
+    
+    def get_recent_lessons(self, limit: int = 5) -> List[Dict[str, Any]]:
+        """Get the most recent lessons learned"""
+        query = """
+        MATCH (l:Lesson)
+        RETURN l
+        ORDER BY l.created_at DESC
+        LIMIT $limit
+        """
+        
+        with self.driver.session() as session:
+            result = session.run(query, limit=limit)
+            return [dict(record["l"]) for record in result]
+    
+    def get_lessons_for_task_type(self, task_type: str) -> List[Dict[str, Any]]:
+        """Get lessons relevant to a specific task type"""
+        query = """
+        MATCH (r:Run {task_type: $task_type})<-[:RAN]-(a:AgentVersion)-[:LEARNED]->(l:Lesson)
+        RETURN DISTINCT l
+        ORDER BY l.created_at DESC
+        """
+        
+        with self.driver.session() as session:
+            result = session.run(query, task_type=task_type)
+            return [dict(record["l"]) for record in result]
+    
+    def get_recurring_failure_modes(self) -> List[Dict[str, Any]]:
+        """Get recurring failure patterns"""
+        query = """
+        MATCH (r:Run {success: false})
+        WITH r.task_type AS task_type, COUNT(r) AS failure_count
+        WHERE failure_count > 1
+        RETURN task_type, failure_count
+        ORDER BY failure_count DESC
+        """
+        
+        with self.driver.session() as session:
+            result = session.run(query)
+            return [dict(record) for record in result]
+    
+    def get_timeline_events(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get timeline of all events for UI display"""
+        query = """
+        MATCH (a:AgentVersion)
+        OPTIONAL MATCH (a)-[:RAN]->(r:Run)
+        OPTIONAL MATCH (a)-[:LEARNED]->(l:Lesson)
+        OPTIONAL MATCH (a)-[:GAINED]->(c:Capability)
+        WITH a, r, l, c
+        UNWIND [
+            {type: 'version', timestamp: a.created_at, data: a},
+            {type: 'run', timestamp: r.started_at, data: r},
+            {type: 'lesson', timestamp: l.created_at, data: l},
+            {type: 'capability', timestamp: c.created_at, data: c}
+        ] AS event
+        WHERE event.data IS NOT NULL
+        RETURN event
+        ORDER BY event.timestamp DESC
+        LIMIT $limit
+        """
+        
+        with self.driver.session() as session:
+            result = session.run(query, limit=limit)
+            return [dict(record["event"]) for record in result]
+    
+    def get_graph_insights(self) -> Dict[str, Any]:
+        """Get comprehensive graph insights for UI"""
+        insights = {
+            "top_lessons": self.get_recent_lessons(5),
+            "recurring_failures": self.get_recurring_failure_modes(),
+            "total_runs": 0,
+            "success_rate": 0.0,
+            "capabilities_gained": []
+        }
+        
+        # Get run statistics
+        with self.driver.session() as session:
+            # Total runs and success rate
+            result = session.run("""
+                MATCH (r:Run)
+                RETURN COUNT(r) AS total, SUM(CASE WHEN r.success THEN 1 ELSE 0 END) AS successful
+            """)
+            record = result.single()
+            if record:
+                total = record["total"] or 0
+                successful = record["successful"] or 0
+                insights["total_runs"] = total
+                insights["success_rate"] = (successful / total * 100) if total > 0 else 0.0
+            
+            # Capabilities gained
+            result = session.run("""
+                MATCH (c:Capability)
+                RETURN c.name AS name, c.description AS description
+                ORDER BY c.created_at DESC
+                LIMIT 10
+            """)
+            insights["capabilities_gained"] = [dict(record) for record in result]
+        
+        return insights
