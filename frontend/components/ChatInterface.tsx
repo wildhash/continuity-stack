@@ -65,13 +65,13 @@ export default function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow-lg">
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-t-lg">
+    <div className="flex flex-col h-full bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-t-lg flex-shrink-0">
         <h2 className="text-xl font-bold">Continuity Agent Chat</h2>
         <p className="text-sm opacity-90">Talk to the self-evolving AI agent</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {messages.length === 0 && (
           <div className="text-center text-gray-500 mt-8">
             <p className="text-lg mb-2">👋 Hello! I'm an evolving AI agent.</p>
@@ -120,7 +120,7 @@ export default function ChatInterface() {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="border-t p-4">
+      <div className="border-t p-4 flex-shrink-0 bg-white">
         <div className="flex space-x-2">
           <input
             type="text"

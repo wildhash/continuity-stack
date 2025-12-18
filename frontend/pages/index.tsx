@@ -31,8 +31,8 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <main className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200">
-        <div className="container mx-auto px-4 py-8">
+      <main className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col">
+        <div className="container mx-auto px-4 py-8 flex-1 flex flex-col">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">
@@ -98,7 +98,7 @@ export default function Home() {
           </div>
 
           {/* Content Area */}
-          <div className="h-[600px]">
+          <div className="flex-1 min-h-[500px] flex flex-col">
             {!apiConnected && (
               <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
                 <div className="flex">
@@ -124,13 +124,15 @@ export default function Home() {
               </div>
             )}
 
-            {activeTab === 'chat' && <ChatInterface />}
-            {activeTab === 'timeline' && <ProfileTimeline />}
-            {activeTab === 'demo' && <DemoScenario />}
+            <div className="flex-1 min-h-0">
+              {activeTab === 'chat' && <ChatInterface />}
+              {activeTab === 'timeline' && <ProfileTimeline />}
+              {activeTab === 'demo' && <DemoScenario />}
+            </div>
           </div>
 
           {/* Footer */}
-          <div className="mt-8 text-center text-sm text-gray-600">
+          <div className="py-4 text-center text-sm text-gray-600 flex-shrink-0">
             <p>
               Continuity Stack: Lifeline UI → EchoForge API → Continuity Core
             </p>
