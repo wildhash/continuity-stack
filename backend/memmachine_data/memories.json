@@ -63,5 +63,18 @@
       "capability_gained": "handle_validation_task"
     },
     "timestamp": "2025-12-18T15:55:01.244033"
+  },
+  {
+    "id": "mem_5_1766073468",
+    "namespace": "continuity-stack-demo",
+    "content": "Lesson: Input validation against schemas is required before processing data",
+    "metadata": {
+      "category": "lesson",
+      "task_type": "validation_task",
+      "task_id": "task_1_1766073468",
+      "run_id": "run_1_1766073468",
+      "capability_gained": "handle_validation_task"
+    },
+    "timestamp": "2025-12-18T15:57:48.617462"
   }
 ]
