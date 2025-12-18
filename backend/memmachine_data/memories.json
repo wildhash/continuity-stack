@@ -11,5 +11,57 @@
       "capability_gained": "handle_validation_task"
     },
     "timestamp": "2025-12-18T15:52:18.244768"
+  },
+  {
+    "id": "mem_1_1766073301",
+    "namespace": "continuity-stack-demo",
+    "content": "Lesson: Input validation against schemas is required before processing data",
+    "metadata": {
+      "category": "lesson",
+      "task_type": "validation_task",
+      "task_id": "task_1_1766073301",
+      "run_id": "run_1_1766073301",
+      "capability_gained": "handle_validation_task"
+    },
+    "timestamp": "2025-12-18T15:55:01.229505"
+  },
+  {
+    "id": "mem_2_1766073301",
+    "namespace": "continuity-stack-demo",
+    "content": "Lesson: The capability 'handle_test_task' is essential for handling test_task tasks",
+    "metadata": {
+      "category": "lesson",
+      "task_type": "test_task",
+      "task_id": "task_1_1766073301",
+      "run_id": "run_1_1766073301",
+      "capability_gained": "handle_test_task"
+    },
+    "timestamp": "2025-12-18T15:55:01.231565"
+  },
+  {
+    "id": "mem_3_1766073301",
+    "namespace": "continuity-stack-demo",
+    "content": "Lesson: The capability 'handle_unique_task_type' is essential for handling unique_task_type tasks",
+    "metadata": {
+      "category": "lesson",
+      "task_type": "unique_task_type",
+      "task_id": "task_1_1766073301",
+      "run_id": "run_1_1766073301",
+      "capability_gained": "handle_unique_task_type"
+    },
+    "timestamp": "2025-12-18T15:55:01.233222"
+  },
+  {
+    "id": "mem_4_1766073301",
+    "namespace": "continuity-stack-demo",
+    "content": "Lesson: Input validation against schemas is required before processing data",
+    "metadata": {
+      "category": "lesson",
+      "task_type": "validation_task",
+      "task_id": "task_1_1766073301",
+      "run_id": "run_1_1766073301",
+      "capability_gained": "handle_validation_task"
+    },
+    "timestamp": "2025-12-18T15:55:01.244033"
   }
 ]
