@@ -219,8 +219,16 @@ class ContinuityCore:
             result["output"] = {
                 "message": task_response.get("message", f"Successfully executed {task_type} task"),
                 "details": task_response.get("details", task_data),
-                "capabilities_used": [required_capability] if has_capability else [],
-                "cited_knowledge": recalled_info if recalled_info["has_relevant_knowledge"] else None
+                "capabilities_used": [required_capability] if has_capability else []
+            }
+            
+            # Add explicit citations (always present, even if empty)
+            result["output"]["memory_citations"] = recalled_info.get("memories", [])
+            result["output"]["graph_citations"] = recalled_info.get("lessons", [])
+            result["output"]["citation_summary"] = {
+                "has_citations": recalled_info["has_relevant_knowledge"],
+                "memory_count": len(recalled_info.get("memories", [])),
+                "lesson_count": len(recalled_info.get("lessons", []))
             }
             
             # Update run status in Neo4j
@@ -366,6 +374,9 @@ class ContinuityCore:
         if reflection.improvement_strategy:
             self.agent_version.add_capability(capability_needed)
         
+        # Track if any storage succeeded (for version increment)
+        storage_succeeded = False
+        
         # Store in MemMachine
         if self.memmachine_client:
             try:
@@ -379,6 +390,8 @@ class ContinuityCore:
                         "capability_gained": capability_needed
                     }
                 )
+                storage_succeeded = True
+                logger.info(f"Stored lesson in MemMachine for {capability_needed}")
             except Exception as e:
                 logger.error(f"Failed to store lesson in MemMachine: {e}")
         
@@ -412,11 +425,16 @@ class ContinuityCore:
                     version=self.current_version,
                     lesson=reflection.lesson_learned
                 )
+                storage_succeeded = True
+                logger.info(f"Stored lesson in Neo4j graph for {capability_needed}")
             except Exception as e:
                 logger.error(f"Failed to store lesson in graph: {e}")
         
-        # Increment version when new capability is gained
-        self._increment_version()
+        # Increment version only if at least one storage succeeded
+        if storage_succeeded:
+            self._increment_version()
+        else:
+            logger.warning(f"Skipping version increment - no storage succeeded for capability {capability_needed}")
         
         return {
             "lesson_learned": reflection.lesson_learned,

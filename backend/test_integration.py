@@ -149,5 +149,48 @@ async def test_deterministic_reflection():
     await mm.close()
 
 
+@pytest.mark.asyncio
+async def test_citation_format():
+    """Test that citations are always present in consistent format"""
+    llm = LLMClient()
+    mm = MemMachineClient()
+    core = ContinuityCore(llm_client=llm, memmachine_client=mm, neo4j_client=None)
+    
+    # First run to create knowledge
+    await core.execute_task({
+        "type": "citation_test_task",
+        "data": {},
+        "should_fail_first": True
+    })
+    
+    # Second run should have citations
+    result = await core.execute_task({
+        "type": "citation_test_task",
+        "data": {},
+        "should_fail_first": False
+    })
+    
+    # Verify output structure
+    assert "output" in result
+    assert result["output"] is not None
+    
+    # Verify explicit citation fields are always present
+    assert "memory_citations" in result["output"]
+    assert "graph_citations" in result["output"]
+    assert "citation_summary" in result["output"]
+    
+    # Verify citation_summary structure
+    citation_summary = result["output"]["citation_summary"]
+    assert "has_citations" in citation_summary
+    assert "memory_count" in citation_summary
+    assert "lesson_count" in citation_summary
+    
+    # Verify counts are numeric
+    assert isinstance(citation_summary["memory_count"], int)
+    assert isinstance(citation_summary["lesson_count"], int)
+    
+    await mm.close()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

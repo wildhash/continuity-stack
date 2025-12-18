@@ -110,12 +110,18 @@ class TaskRequest(BaseModel):
 
 class TaskResponse(BaseModel):
     task_id: str
+    run_id: Optional[str] = None  # Added for traceability
     task_type: str
     status: str
     timestamp: str
     agent_version: str
+    steps: List[Dict[str, Any]] = []  # Step-by-step execution trace
     output: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
+    reflection: Optional[Dict[str, Any]] = None  # Reflection data if failed
+    lesson: Optional[str] = None  # Lesson learned if failed
+    graph_summary: Optional[Dict[str, Any]] = None  # Graph metadata
+    recalled_knowledge: Optional[Dict[str, Any]] = None  # Citations
 
 
 class MemoryRequest(BaseModel):
@@ -169,12 +175,71 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint - app is running"""
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "neo4j_connected": neo4j_client is not None
+        "service": "EchoForge API",
+        "version": "1.0.0"
     }
+
+
+@app.get("/health/deps")
+async def health_check_dependencies():
+    """Health check endpoint - dependency connectivity"""
+    deps_status = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "dependencies": {}
+    }
+    
+    # Check Neo4j connectivity
+    neo4j_status = "unavailable"
+    if neo4j_client:
+        try:
+            # Try a simple query to verify connection
+            with neo4j_client.driver.session() as session:
+                session.run("RETURN 1")
+            neo4j_status = "connected"
+        except Exception as e:
+            logger.error(f"Neo4j health check failed: {e}")
+            neo4j_status = "error"
+            deps_status["status"] = "degraded"
+    
+    deps_status["dependencies"]["neo4j"] = {
+        "status": neo4j_status,
+        "required": False  # Optional dependency
+    }
+    
+    # Check MemMachine connectivity
+    memmachine_status = "local"
+    if memmachine_client:
+        if memmachine_client.use_local:
+            memmachine_status = "local_mode"
+        else:
+            try:
+                # MemMachine client is async, just check initialization
+                memmachine_status = "api_mode"
+            except Exception as e:
+                logger.error(f"MemMachine health check failed: {e}")
+                memmachine_status = "error"
+    
+    deps_status["dependencies"]["memmachine"] = {
+        "status": memmachine_status,
+        "required": False  # Has fallback
+    }
+    
+    # Check LLM client
+    llm_status = "deterministic_mode"
+    if llm_client and llm_client.use_llm:
+        llm_status = "llm_mode"
+    
+    deps_status["dependencies"]["llm"] = {
+        "status": llm_status,
+        "required": False  # Has fallback
+    }
+    
+    return deps_status
 
 
 # ==================== Agent & Task Endpoints ====================
@@ -671,6 +736,47 @@ async def run_demo_scenario():
         return {
             "success": False,
             "scenario_log": scenario_log,
+            "error": str(e)
+        }
+
+
+@app.post("/api/demo/reset")
+async def reset_demo():
+    """Reset the demo to initial state (for repeated demos)"""
+    try:
+        reset_log = []
+        
+        # Reset MemMachine if using local mode
+        if memmachine:
+            try:
+                memmachine.clear_all()
+                reset_log.append("✓ Cleared local MemMachine data")
+            except Exception as e:
+                reset_log.append(f"⚠ MemMachine reset failed: {e}")
+        
+        # Note: We don't reset Neo4j as it's useful to preserve the graph
+        # for visualization. Users can manually clear it if needed.
+        reset_log.append("ℹ Neo4j data preserved (clear manually if needed)")
+        
+        # Reset the Continuity Core to initial state
+        global continuity_core
+        continuity_core = ContinuityCore(
+            llm_client=llm_client,
+            memmachine_client=memmachine_client,
+            neo4j_client=neo4j_client
+        )
+        reset_log.append("✓ Reset Continuity Core to version 1.0.0")
+        
+        return {
+            "success": True,
+            "reset_log": reset_log,
+            "message": "Demo reset complete. Agent is back to initial state."
+        }
+        
+    except Exception as e:
+        logger.error(f"Error resetting demo: {e}")
+        return {
+            "success": False,
             "error": str(e)
         }
 
