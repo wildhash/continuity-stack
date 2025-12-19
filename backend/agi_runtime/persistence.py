@@ -4,10 +4,13 @@ Handles append-only JSONL cycle logging and artifact storage
 """
 import json
 import os
+import logging
 from pathlib import Path
 from datetime import datetime
 from typing import List, Optional
 from .types import CycleRecord
+
+logger = logging.getLogger(__name__)
 
 
 class CyclePersistence:
@@ -77,10 +80,15 @@ class CyclePersistence:
         
         cycles = []
         with open(cycles_file, 'r') as f:
-            for line in f:
+            for line_num, line in enumerate(f, 1):
                 if line.strip():
-                    cycle_data = json.loads(line)
-                    cycles.append(CycleRecord(**cycle_data))
+                    try:
+                        cycle_data = json.loads(line)
+                        cycles.append(CycleRecord(**cycle_data))
+                    except (json.JSONDecodeError, ValueError) as e:
+                        logger.error(f"Failed to parse line {line_num} in {cycles_file}: {e}")
+                        # Skip malformed lines but continue processing
+                        continue
         
         # Return newest first
         cycles.reverse()

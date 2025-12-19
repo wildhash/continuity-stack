@@ -4,8 +4,11 @@ Implements canonical JSON serialization and SHA-256 hash chaining
 """
 import json
 import hashlib
-from typing import Any, Dict
+import logging
+from typing import Any, Dict, List
 from .types import CycleRecord
+
+logger = logging.getLogger(__name__)
 
 
 def canonical_json(data: Any) -> str:
@@ -47,7 +50,7 @@ def compute_cycle_hash(cycle: CycleRecord, prev_hash: str = None) -> str:
     return compute_hash(cycle_dict)
 
 
-def verify_hash_chain(cycles: list[CycleRecord]) -> bool:
+def verify_hash_chain(cycles: List[CycleRecord]) -> bool:
     """
     Verify integrity of a hash chain
     Returns True if all hashes are valid

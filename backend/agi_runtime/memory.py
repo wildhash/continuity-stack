@@ -237,8 +237,9 @@ def deterministic_retrieval(goal: str, memories: List[MemoryItem], k: int = 8) -
         
         # Recency bonus
         try:
+            from datetime import timezone
             timestamp = datetime.fromisoformat(memory.timestamp.replace('Z', '+00:00'))
-            age_days = (datetime.now() - timestamp).days
+            age_days = (datetime.now(timezone.utc) - timestamp).days
             recency_score = max(0, 1.0 - (age_days / 30))  # Decay over 30 days
             score += recency_score * 0.3
         except Exception:

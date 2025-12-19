@@ -30,7 +30,7 @@ class ContinuityAgent:
         
         if self.use_agi_runtime:
             logger.info("✓ AGI Runtime mode enabled")
-            from .agi_runtime import AGIRuntime
+            from agi_runtime import AGIRuntime
             self.runtime = AGIRuntime(
                 llm_client=llm_client,
                 memmachine_client=memmachine_client,
@@ -39,7 +39,7 @@ class ContinuityAgent:
             )
         else:
             logger.info("✓ Legacy continuity_core mode (default)")
-            from .continuity_core import ContinuityCore
+            from continuity_core import ContinuityCore
             self.runtime = ContinuityCore(
                 llm_client=llm_client,
                 memmachine_client=memmachine_client,

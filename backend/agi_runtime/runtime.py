@@ -6,7 +6,7 @@ observe → model → plan → act → verify → reflect → store → evolve
 import logging
 import uuid
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 
 from .types import (
     CycleRecord, PlanStep, ActionResult, Reflection,
@@ -285,7 +285,7 @@ class AGIRuntime:
         
         return plan
     
-    async def act(self, plan: List[PlanStep]) -> tuple[List[ActionResult], Dict[str, Any]]:
+    async def act(self, plan: List[PlanStep]) -> Tuple[List[ActionResult], Dict[str, Any]]:
         """
         Action phase: execute approved plan steps
         Returns (actions_taken, tool_outputs)

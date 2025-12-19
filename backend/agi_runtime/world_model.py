@@ -134,7 +134,10 @@ def summarize_world_model(world_model: WorldModel) -> str:
 
 
 def add_entity(world_model: WorldModel, entity_id: str, entity_type: str, attributes: Dict[str, Any] = None) -> WorldModel:
-    """Add or update an entity in the world model"""
+    """
+    Add or update an entity in the world model
+    NOTE: This function mutates world_model in-place and returns it for chaining
+    """
     # Check if entity exists
     for entity in world_model.entities:
         if entity.id == entity_id:
@@ -155,7 +158,10 @@ def add_entity(world_model: WorldModel, entity_id: str, entity_type: str, attrib
 
 
 def add_relation(world_model: WorldModel, from_id: str, to_id: str, relation_type: str, metadata: Dict[str, Any] = None) -> WorldModel:
-    """Add a relation between entities"""
+    """
+    Add a relation between entities
+    NOTE: This function mutates world_model in-place and returns it for chaining
+    """
     world_model.relations.append(WorldRelation(
         from_id=from_id,
         to_id=to_id,
@@ -167,7 +173,10 @@ def add_relation(world_model: WorldModel, from_id: str, to_id: str, relation_typ
 
 
 def add_constraint(world_model: WorldModel, constraint_type: str, description: str, enforced: bool = True) -> WorldModel:
-    """Add a constraint to the world model"""
+    """
+    Add a constraint to the world model
+    NOTE: This function mutates world_model in-place and returns it for chaining
+    """
     # Avoid duplicates
     if not any(c.description == description for c in world_model.constraints):
         world_model.constraints.append(WorldConstraint(

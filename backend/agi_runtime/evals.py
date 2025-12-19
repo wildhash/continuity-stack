@@ -16,8 +16,27 @@ class EvalHarness:
     Provides scoring and validation
     """
     
-    def __init__(self):
+    def __init__(
+        self,
+        reasoning_weight: float = 0.25,
+        planning_weight: float = 0.25,
+        tool_use_weight: float = 0.25,
+        safety_weight: float = 0.25
+    ):
+        """
+        Args:
+            reasoning_weight: Weight for reasoning score (default: 0.25)
+            planning_weight: Weight for planning score (default: 0.25)
+            tool_use_weight: Weight for tool use score (default: 0.25)
+            safety_weight: Weight for safety score (default: 0.25)
+        """
         self.safety_gate = SafetyGate()
+        self.weights = {
+            'reasoning': reasoning_weight,
+            'planning': planning_weight,
+            'tool_use': tool_use_weight,
+            'safety': safety_weight
+        }
     
     def evaluate_cycle(self, cycle: CycleRecord) -> EvalScores:
         """
@@ -31,10 +50,10 @@ class EvalHarness:
         
         # Compute overall score (weighted average)
         overall_score = (
-            reasoning_score * 0.25 +
-            planning_score * 0.25 +
-            tool_use_score * 0.25 +
-            safety_score * 0.25
+            reasoning_score * self.weights['reasoning'] +
+            planning_score * self.weights['planning'] +
+            tool_use_score * self.weights['tool_use'] +
+            safety_score * self.weights['safety']
         )
         
         return EvalScores(

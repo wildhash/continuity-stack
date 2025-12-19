@@ -57,12 +57,14 @@ class SafetyGate:
     Safety gate that evaluates plans and actions before execution
     """
     
-    def __init__(self, environment: str = "production"):
+    def __init__(self, environment: str = "production", risky_confidence_threshold: float = 0.7):
         """
         Args:
             environment: "production", "staging", or "development"
+            risky_confidence_threshold: Minimum confidence required for risky tools (default: 0.7)
         """
         self.environment = environment
+        self.risky_confidence_threshold = risky_confidence_threshold
         self.injection_patterns = [re.compile(p, re.IGNORECASE) for p in INJECTION_PATTERNS]
         self.secret_patterns = [re.compile(p, re.IGNORECASE) for p in SECRET_PATTERNS]
     
@@ -143,9 +145,9 @@ class SafetyGate:
                 continue
             
             # Check if risky tool with low confidence
-            if tool in RISKY_TOOLS and confidence < 0.7:
+            if tool in RISKY_TOOLS and confidence < self.risky_confidence_threshold:
                 sandbox_required = True
-                reasons.append(f"Risky tool '{tool}' requires sandbox rehearsal (confidence {confidence:.2f} < 0.7)")
+                reasons.append(f"Risky tool '{tool}' requires sandbox rehearsal (confidence {confidence:.2f} < {self.risky_confidence_threshold})")
         
         # Determine overall status
         if blocked_tools_found:
