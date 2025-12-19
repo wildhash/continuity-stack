@@ -86,7 +86,9 @@ class CyclePersistence:
                         cycle_data = json.loads(line)
                         cycles.append(CycleRecord(**cycle_data))
                     except (json.JSONDecodeError, ValueError) as e:
-                        logger.error(f"Failed to parse line {line_num} in {cycles_file}: {e}")
+                        # Log with truncated line content for debugging
+                        line_preview = line[:100] + "..." if len(line) > 100 else line
+                        logger.error(f"Failed to parse line {line_num} in {cycles_file}: {e}\nLine preview: {line_preview}")
                         # Skip malformed lines but continue processing
                         continue
         

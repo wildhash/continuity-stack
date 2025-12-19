@@ -9,6 +9,12 @@ from .safety import SafetyGate
 
 logger = logging.getLogger(__name__)
 
+# Default weights for eval scoring (equal weighting strategy)
+DEFAULT_REASONING_WEIGHT = 0.25
+DEFAULT_PLANNING_WEIGHT = 0.25
+DEFAULT_TOOL_USE_WEIGHT = 0.25
+DEFAULT_SAFETY_WEIGHT = 0.25
+
 
 class EvalHarness:
     """
@@ -18,10 +24,10 @@ class EvalHarness:
     
     def __init__(
         self,
-        reasoning_weight: float = 0.25,
-        planning_weight: float = 0.25,
-        tool_use_weight: float = 0.25,
-        safety_weight: float = 0.25
+        reasoning_weight: float = DEFAULT_REASONING_WEIGHT,
+        planning_weight: float = DEFAULT_PLANNING_WEIGHT,
+        tool_use_weight: float = DEFAULT_TOOL_USE_WEIGHT,
+        safety_weight: float = DEFAULT_SAFETY_WEIGHT
     ):
         """
         Args:

@@ -9,6 +9,9 @@ from .types import SafetyAssessment, ToolStatus, PlanStep
 
 logger = logging.getLogger(__name__)
 
+# Default confidence threshold for risky tools
+DEFAULT_RISKY_CONFIDENCE_THRESHOLD = 0.7
+
 
 # Tool categories
 SAFE_TOOLS = {
@@ -57,7 +60,7 @@ class SafetyGate:
     Safety gate that evaluates plans and actions before execution
     """
     
-    def __init__(self, environment: str = "production", risky_confidence_threshold: float = 0.7):
+    def __init__(self, environment: str = "production", risky_confidence_threshold: float = DEFAULT_RISKY_CONFIDENCE_THRESHOLD):
         """
         Args:
             environment: "production", "staging", or "development"

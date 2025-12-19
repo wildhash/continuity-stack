@@ -10,7 +10,7 @@ from typing import Dict, List, Any, Optional, Tuple
 
 from .types import (
     CycleRecord, PlanStep, ActionResult, Reflection,
-    EvalScores, MemoryWrite, WorldModel
+    EvalScores, MemoryWrite, WorldModel, ToolStatus
 )
 from .world_model import (
     create_empty_world_model, update_world_model,
@@ -94,9 +94,9 @@ class AGIRuntime:
             actions_taken = []
             tool_outputs = {}
             
-            if safety_assessment.status.value == "allowed":
+            if safety_assessment.status == ToolStatus.ALLOWED:
                 actions_taken, tool_outputs = await self.act(plan)
-            elif safety_assessment.status.value == "sandboxed":
+            elif safety_assessment.status == ToolStatus.SANDBOXED:
                 logger.warning(f"Plan requires sandbox rehearsal: {safety_assessment.reasons}")
                 # Could implement sandbox here
             else:
@@ -357,10 +357,10 @@ class AGIRuntime:
             what_failed.append("No actions were executed")
         
         # Analyze safety
-        if safety_assessment.status.value == "blocked":
+        if safety_assessment.status == ToolStatus.BLOCKED:
             what_failed.append(f"Safety gate blocked plan: {safety_assessment.reasons}")
             lessons_learned.append("Need to improve plan safety")
-        elif safety_assessment.status.value == "allowed":
+        elif safety_assessment.status == ToolStatus.ALLOWED:
             what_worked.append("Plan passed safety checks")
         
         # Analyze eval scores
