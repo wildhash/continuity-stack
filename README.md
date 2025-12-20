@@ -6,6 +6,24 @@ A 3-layer memory-powered agent system demonstrating self-reflection and learning
 
 Built with **MemMachine** (persistent memory) + **Neo4j** (knowledge graph) for Identity, Decisions, and Agent Version tracking.
 
+## ⚡ NEW: AGI Runtime Mode
+
+**Continuity now includes an optional AGI Runtime** - a structured, auditable, and measurable agent execution system:
+
+```bash
+export CONTINUITY_AGI_RUNTIME=1  # Enable AGI Runtime
+```
+
+**AGI Runtime Features:**
+- 🔗 **Hash-Chained Cycles**: Tamper-evident append-only audit log
+- 🛡️ **Safety Gates**: Tool allowlisting, injection detection, tripwires
+- 📊 **Eval Harness**: Automated quality scoring per cycle
+- 🧠 **3-Tier Memory**: Episodic, semantic, and procedural memory
+- 🌍 **World Model**: Lightweight belief state tracking
+- ✅ **Deterministic Mode**: Fully functional without API keys
+
+**See:** [docs/agi_runtime.md](./docs/agi_runtime.md) for complete documentation.
+
 ## 🎯 Demo Highlights
 
 This full-stack demo showcases a **production-ready self-evolving agent system**:
@@ -344,6 +362,30 @@ MEMMACHINE_PATH=./memmachine_data
 OPENAI_API_KEY=sk-your-openai-api-key
 LLM_MODEL=gpt-4  # or gpt-3.5-turbo
 ```
+
+#### Backend (Optional - AGI Runtime)
+
+```bash
+# Enable AGI Runtime mode (default: off)
+CONTINUITY_AGI_RUNTIME=1
+
+# AGI Runtime environment (affects safety gates)
+# Options: production, staging, development
+AGI_ENVIRONMENT=production  # default
+
+# AGI Runtime uses existing MemMachine and Neo4j configs
+```
+
+**AGI Runtime Behavior:**
+- When `CONTINUITY_AGI_RUNTIME=0` (default): Uses legacy `continuity_core.py`
+- When `CONTINUITY_AGI_RUNTIME=1`: Uses new structured AGI runtime with:
+  - Append-only cycle logs in `runs/agi_runtime/YYYY-MM-DD/cycles.jsonl`
+  - SHA-256 hash chains for tamper detection
+  - Safety gates and eval harness
+  - Three-tier memory system
+
+**See:** [docs/agi_runtime.md](./docs/agi_runtime.md) for full details.
+
 
 #### Frontend
 
